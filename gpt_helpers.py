@@ -69,10 +69,12 @@ def generate_new_file(kc_file_path, question_kc_file_path, output_file_path):
         kc_id = row['knowledgecomponent_id']
         if kc_id in kc_map:
             kc_info = kc_map[kc_id]
-            new_data.append({'question_id': question_id, 'name': kc_info['name'], 'description': kc_info['description']})
+            new_data.append({'question_id': question_id, 'kc_id': kc_id, 'name': kc_info['name'], 'description': kc_info['description']})
 
-    # Creating a DataFrame from the new data and saving it
+    # Creating a DataFrame from the new data
     new_df = pandas.DataFrame(new_data)
+
+    # Saving the new DataFrame to a CSV file
     new_df.to_csv(output_file_path, index=False)
 
 
@@ -120,7 +122,7 @@ def read_data(student_fn, question_fn, kc_fn, N = -1):
         for question_id in IDs:
             if len(question_df[question_df['id'] == int(question_id)]['question_rich_text']) > 0: # only read questions with non-empty text
                 questions.append(question_df[question_df['id'] == int(question_id)]['question_rich_text'].values[0].strip())
-                KCs.append(kc_df[kc_df['question_id'] == int(question_id)]['description'].values[0].strip())
+                KCs.append(str(kc_df[kc_df['question_id'] == int(question_id)]['kc_id'].values[0]).strip())
                 difficulties.append(question_df[question_df['id'] == int(question_id)]['difficulty'].values[0])
         
         all_IDs.append(IDs)
@@ -169,18 +171,16 @@ def remove_padding(data):
 
     return data_no_padding
 
-
-
 def generate_prompts(data, incl_id = True, incl_q = True, incl_kc = True, incl_diff = True):
     """
     Generates the prompts for the given data. We did not try all modifications to the parameters of this function due to computational and budget constraints.
 
     Args:
         data: The sampled data to generate prompts for.
-        incl_id: Whether to include the question ID in the prompt. The default is True.
-        incl_q: Whether to include the question text in the prompt. The default is True.
+        incl_id: Whether to include the question ID in the prompt. The default is True. (Not used in our experiments.)
+        incl_q: Whether to include the question text in the prompt. The default is True. (Not used in our experiments.)
         incl_kc: Whether to include the KC in the prompt. The default is True.
-        incl_diff: Whether to include the difficulty in the prompt. The default is True.
+        incl_diff: Whether to include the difficulty in the prompt. The default is True. (Not used in our experiments, as it is always considered True. We did not consider the KC 'texts', due to budget and computational constraints.)
 
     Returns:
         prompts: A list of prompts for the given data.
@@ -188,7 +188,11 @@ def generate_prompts(data, incl_id = True, incl_q = True, incl_kc = True, incl_d
     """
 
     IDs, questions, KCs, difficulties, answers = data.values()
-    base_prompt = "You are an instructor and want to trace how the student has learned to answer the questions over time. Each time, the user gives you some attributes related to these questions (ID: The question ID; Question: The question text; Topic: The question topic; Difficulty: An integer ranging from 1 [easiest] to 3 [hardest] as estimated by the instructor), and you should output a single word: CORRECT if you think the student would answer the question correctly, and WRONG if you think the student would answer the question wrong. Output no other word at all, this is very important. The user may provide all of the listed attributes, or just one/few. Try to learn pattern of the student over time and how they improve their knowledge of the course."
+
+    if incl_kc:
+        base_prompt = "You are an instructor and want to trace how the student has learned to answer the questions over time. Each time, the user gives you the difficulty of a question (an integer ranging from 1 [easiest] to 3 [hardest] as estimated by the instructor) as well as the topic of the question (as an ID indicating the topic, as specified by the instructor), and you should output a single word: CORRECT if you think the student would answer the question correctly, and WRONG if you think the student would answer the question wrong. Output no other word at all, this is very important. Try to learn the pattern of the student over time and how they improve their knowledge of the course."
+    else:
+        base_prompt = "You are an instructor and want to trace how the student has learned to answer the questions over time. Each time, the user gives you the difficulty of a question (an integer ranging from 1 [easiest] to 3 [hardest] as estimated by the instructor), and you should output a single word: CORRECT if you think the student would answer the question correctly, and WRONG if you think the student would answer the question wrong. Output no other word at all, this is very important. Try to learn the pattern of the student over time and how they improve their knowledge of the course."
 
     prompts = []
     gts = []
@@ -248,16 +252,20 @@ def randomly_sample_prompts(prompts, gts, N = 100, seed = 42, max_token_len = 40
     
     prompts_sample = []
     gts_sample = []
-    random.seed(seed)
-    indices = random.sample(range(len(prompts)), 2 * N)
 
-    for i in indices:
-        if check_token_len(prompts[i], max_token_len = max_token_len): # only if the token length is valid for this prompt
-            prompts_sample.append(prompts[i])
-            gts_sample.append(gts[i])
+    # Random sampling no longer used:
+    # random.seed(seed)
+    # indices = random.sample(range(len(prompts)), 2 * N)
 
-    return prompts_sample[:N], gts_sample[:N]
-
+    from tqdm import tqdm
+    with tqdm(total = len(prompts)) as pbar:
+        for i in range(len(prompts)):
+            if check_token_len(prompts[i], max_token_len = max_token_len): # only if the token length is valid for this prompt
+                prompts_sample.append(prompts[i])
+                gts_sample.append(gts[i])
+            pbar.update(1)
+    print("Checking token lens done")
+    return prompts_sample, gts_sample
 
 
 def predict(prompts, gts, api_info):
@@ -325,17 +333,18 @@ def predict(prompts, gts, api_info):
 
 def evaluate(preds, gts):
     """
-    Evaluates the predictions against the ground truths.
+    Evaluate the predictions of a model, given the ground truth labels.
 
     Args:
-        preds: The predictions.
-        gts: The ground truths.
+        preds: List of predictions.
+        gts: List of ground truth labels.
 
     Returns:
-        metrics: The evaluation metrics.
+        metrics: The dictionary of the evaluation metrics.
     """
 
-    preds = [1 if pred == "CORRECT" else 0 for pred in preds] # "CORRECT" == 1, "WRONG" == 0
+    # The labels "CORRECT" and "WRONG", as returned by the GPT-3.5 model, are converted to 1 and 0, respectively
+    preds = [1 if pred == "CORRECT" else 0 for pred in preds]
     gts = [1 if gt == "CORRECT" else 0 for gt in gts]
 
     # Calculate the metrics

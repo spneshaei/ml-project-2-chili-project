@@ -28,11 +28,15 @@ The project is structured as follows:
 
 - `dataverse_files` directory: Contains the raw data from the dataset we used.
 
+- `count_correct_incorrect.ipynb` notebook: Contains the code for counting the percentage of correct answers in the dataset to find how much the data is imbalanced.
+
 - `data_processor.ipynb` notebook: Contains the code for data preperation and extracting disjoint subsequences.
 
 - `DCE.pdf`: Contains the filled digital ethics canvas.
 
 - `DNN Knowledge Tracing.ipynb` notebook: Contains the code for training the DNN models.
+
+- `find_number_of_questions_per_user.ipynb` notebook: Contains the code for finding the number of questions answered by each user, useful for generating the figures in the paper.
 
 - `GPT Knowledge Tracing.ipynb` notebook: Contains the code for running inference using GPT-3.5 API.
 

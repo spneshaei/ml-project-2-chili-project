@@ -74,7 +74,7 @@ def embed_text(text, device, size=10):
 # Prior to that, we experimented with different data attributes (e.g., question text, KC text, etc.)
 # *******************************************************************************************************************************
 
-def load_and_process_data(student_filename, seq_len=10):
+def load_and_process_data(student_filename, seq_len=10, should_include_kcs=False, question_to_kc={}):
     """
     Load the data and extract the relevant attributes.
     We choose only difficulty and previous students answers in our final experiments.
@@ -82,6 +82,8 @@ def load_and_process_data(student_filename, seq_len=10):
     Args:
         student_filename: Path to the student data file.
         seq_len: Length of the sequence in the provided student data. The default value is 10.
+        should_include_kcs: Whether to include KCs (i.e. question topics) or not. The default value is False.
+        question_to_kc: The question-KC mapping. The default value is an empty dictionary.
 
     Returns:
         full_data: List of lists of dictionaries, where each dictionary contains the relevant attributes for each question in the sequence.
@@ -96,14 +98,40 @@ def load_and_process_data(student_filename, seq_len=10):
     for student in tqdm(student_data):
         data = []
         for i in range(seq_len):
-            q_id = int(student['question_ids'][i])
-            data.append({
-                'difficulty': int(student['difficulties'][i]),
-                'answer': int(student['answers'][i])
-            })
+            if should_include_kcs:
+                q_id = int(student['question_ids'][i])
+                data.append({
+                    'kc_id': int(question_to_kc[q_id]),
+                    'difficulty': int(student['difficulties'][i]),
+                    'answer': int(student['answers'][i])
+                })
+            else:
+                data.append({
+                    'difficulty': int(student['difficulties'][i]),
+                    'answer': int(student['answers'][i])
+                })
         full_data.append(data)
     
     return full_data
+
+def downsample_correct_class(data):
+    """
+    Downsample the correct answers to balance the data.
+
+    Args:
+        data: The input data in the format we use for this project.
+
+    Returns:
+        data: The downsampled data.
+    """
+    
+    correct_answers = [d for d in data if d[-1]['answer'] == 1] # 1 is correct
+    incorrect_answers = [d for d in data if d[-1]['answer'] == 0] # 0 is incorrect
+    np.random.shuffle(correct_answers) # shuffle correct answers
+    correct_answers = correct_answers[:len(incorrect_answers)] # randomly (as it is shuffled) select the same number of correct answers as incorrect answers
+    data = correct_answers + incorrect_answers # append the correct and incorrect answers together
+    np.random.shuffle(data) # shuffle all
+    return data
 
 
 class StudentSequenceDataset(Dataset):
@@ -112,9 +140,10 @@ class StudentSequenceDataset(Dataset):
     We only provide this for compatibility with the PyTorch DataLoader.
     """
 
-    def __init__(self, data, embedding_dim):
+    def __init__(self, data, embedding_dim, should_include_kcs=False):
         self.data = data
         self.embedding_dim = embedding_dim
+        self.should_include_kcs = should_include_kcs
 
     def __len__(self):
         return len(self.data)
@@ -124,9 +153,12 @@ class StudentSequenceDataset(Dataset):
         input_sequence = []
         for i in range(len(sequence)):
             element = sequence[i]
-            features = [
+            features = ([
                 torch.tensor([element['difficulty']], dtype=torch.float32).cpu().detach()
-            ]
+            ] if not self.should_include_kcs else [
+                torch.tensor([element['difficulty']], dtype=torch.float32).cpu().detach(),
+                torch.tensor([element['kc_id']], dtype=torch.float32).cpu().detach()
+            ])
             if i < len(sequence) - 1:
                 features.append(torch.tensor([element['answer']], dtype=torch.float32).cpu().detach())
             else:
