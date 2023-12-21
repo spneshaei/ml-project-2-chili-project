@@ -40,7 +40,7 @@ def convert_to_array(nums):
         The converted array of integers.
     """
 
-    return [convert_to_int_or_minus_one_if_error(num) for num in nums.split(',')]
+    return [convert_to_int_or_minus_one_if_error(num) for num in nums]
 
 def generate_new_file(kc_file_path, question_kc_file_path, output_file_path):
     """
@@ -264,7 +264,6 @@ def randomly_sample_prompts(prompts, gts, N = 100, seed = 42, max_token_len = 40
                 prompts_sample.append(prompts[i])
                 gts_sample.append(gts[i])
             pbar.update(1)
-    print("Checking token lens done")
     return prompts_sample, gts_sample
 
 
