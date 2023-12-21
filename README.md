@@ -18,7 +18,7 @@ Knowledge tracing (KT) and predicting the next answers of students is considered
 
 ## Installation and Reproducablity
 
-We provide two requirements files for the project. The first one is `requirements-dnn.txt` which installs packages required for running the DNN models and fine-tuning GPT-2. The second one is `requirements-gpt-35.txt` which installs packages required for inference using GPT-3.5 API. The files are automatically extracted using the `conda list -e` command. Use `conda create --name <env> --file [name of the relevant requirements file]` to create an environment with the required packages. To re-run the code, first run the `data_processor.ipynb` notebook to generate the required JSON files. Then, run the `DNN Knowledge Tracing.ipynb` notebook to train the DNN models. Finally, run the `GPT Knowledge Tracing.ipynb` notebook to run inference using GPT-3.5 API using the different set of requirements. The parameters for models can be modified in each file respectively. Additionally, the `GPT-2 Fine-tuning.ipynb` file contains the code for fine-tuning GPT-2 on the dataset. However, we did not use this model in our experiments in the main report as it did not perform well; we only included it as a complimentary experiment in the Appendix of the report.
+We provide two requirements files for the project. The first one is `requirements-dnn.txt` which installs packages required for running the DNN models and fine-tuning GPT-2. The second one is `requirements-gpt-35.txt` which installs packages required for inference using GPT-3.5 API. The files are automatically extracted using the `conda list -e` command. Use `conda create --name <env> --file [name of the relevant requirements file]` to create an environment with the required packages. To re-run the code, first run the `data_processor.ipynb` notebook to generate the required JSON files. Then, run the `DNN Knowledge Tracing.ipynb` notebook to train the DNN models. Finally, run the `GPT Knowledge Tracing.ipynb` notebook to run inference using GPT-3.5 API using the different set of requirements. The parameters for models can be modified in each file respectively. Additionally, the `GPT-2 Fine-tuning.ipynb` file contains the code for fine-tuning GPT-2 on the dataset. However, we did not use this model in our experiments in the main report as it did not perform well; we only included it as a complimentary experiment in the Appendix of the report. If you receive any error related to `accelerate` or `transformers`, running `pip install -U accelerate` and then `pip install -U transformers` may solve the issue.
 
 ## Project Structure
 
@@ -37,6 +37,8 @@ The project is structured as follows:
 - `GPT Knowledge Tracing.ipynb` notebook: Contains the code for running inference using GPT-3.5 API.
 
 - `gpt_helpers.py`: Contains helper functions for running inference using GPT-3.5 API in the `GPT Knowledge Tracing.ipynb` notebook.
+
+- `GPT-2 Fine-tuning.ipynb` notebook: Contains the code for fine-tuning GPT-2 on the dataset.
 
 - `report.pdf`: Contains the final report of the project.
 
